@@ -1,4 +1,6 @@
-Download Python 3.12.8 from the official site: https://www.python.org/ 
+Download Python 3.12.8 from the official site: https://www.python.org/
+
+Link dataset to deploy: https://drive.google.com/file/d/1nGLw8CF-a9xftlxHLvSe8L_gl8Oi-tSp/view?usp=sharing 
 
 ---------------------------------------------------------
                   
