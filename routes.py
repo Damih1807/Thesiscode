@@ -1,3 +1,5 @@
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 from flask import render_template, redirect, url_for
 from flask_jwt_extended import jwt_required, create_access_token, get_jwt_identity
 import pandas as pd
@@ -98,20 +100,20 @@ def register_routes(app):
 
         return render_template('register.html')
 
-    @app.route('/login', methods=['POST'])
-    def login():
-        username = request.json.get('username')
-        password = request.json.get('password')
-
-        if not username or not password:
-            return jsonify({'error': 'Username and password are required'}), 400
-
-        user = check_login_credentials(username, password)
-        if user:
-            access_token = create_access_token(identity=username)
-            return jsonify({'access_token': access_token}), 200  # Trả về token
-        else:
-            return jsonify({'error': 'Thông tin đăng nhập không đúng.'}), 401
+    # @app.route('/login', methods=['POST'])
+    # def login():
+    #     username = request.json.get('username')
+    #     password = request.json.get('password')
+    #
+    #     if not username or not password:
+    #         return jsonify({'error': 'Username and password are required'}), 400
+    #
+    #     user = check_login_credentials(username, password)
+    #     if user:
+    #         access_token = create_access_token(identity=username)
+    #         return jsonify({'access_token': access_token}), 200  # Trả về token
+    #     else:
+    #         return jsonify({'error': 'Thông tin đăng nhập không đúng.'}), 401
 
     @app.route('/recommend_jobs', methods=['GET', 'POST'])
     def recommend_jobs():
@@ -144,7 +146,45 @@ def register_routes(app):
         except Exception as e:
             app.logger.error(f"Error in recommend_jobs: {str(e)}", exc_info=True)
             return jsonify({"error": "An error occurred"}), 500
+    @app.route('/login', methods=['POST'])
+    def login():
+        username = request.json.get('username')
+        password = request.json.get('password')
 
+        if not username or not password:
+            return jsonify({'error': 'Username and password are required'}), 400
+
+        user = check_login_credentials(username, password)
+        if user:
+            # Tạo access token (và refresh token nếu cần)
+            access_token = create_access_token(identity=username)
+
+            # Ví dụ về thời gian hết hạn
+            access_token_expiry = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(minutes=15)
+            refresh_token_expiry = datetime.now(ZoneInfo("Asia/Ho_Chi_Minh")) + timedelta(days=30)
+
+            # Nếu bạn muốn tạo refresh token (tùy thuộc vào cách cài đặt của bạn)
+            refresh_token = create_access_token(identity=username, expires_delta=timedelta(days=30))
+
+            # Lưu token vào bảng UserToken
+            new_user_token = UserToken(
+                user_id=user.user_id,
+                access_token=access_token,
+                refresh_token=refresh_token,
+                access_token_expiry=access_token_expiry,
+                refresh_token_expiry=refresh_token_expiry,
+                is_blacklisted=False
+            )
+            try:
+                db.session.add(new_user_token)
+                db.session.commit()
+            except Exception as e:
+                db.session.rollback()
+                return jsonify({'error': 'Lưu token thất bại', 'details': str(e)}), 500
+
+            return jsonify({'access_token': access_token}), 200  # Trả về token cho client
+        else:
+            return jsonify({'error': 'Thông tin đăng nhập không đúng.'}), 401
 
     @app.route('/logout', methods=['POST'])
     @jwt_required()
